@@ -1,5 +1,5 @@
 # トークン隠蔽用
-Constants/BotSecretToken.cs
+src/Constants/BotSecretToken.cs
 
 ## 以下自動生成
 
