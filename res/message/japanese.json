@@ -1,0 +1,8 @@
+{
+    "Created" : "新しいキューブドラフトを開始します",
+    "PlayerMaxCount" : "参加人数は{0}人です",
+    "PlayerJoined" : "{0}がキューブドラフトに参加しました",
+    "DraftBegan" : "ドラフトを開始します",
+    "DraftPick" : "この中から1枚ピックしてください",
+    "DraftWaiting" : "前の人がピックするのを待機中です"
+}
