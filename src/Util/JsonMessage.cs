@@ -10,6 +10,11 @@ namespace CubeDraftBot.Util
         /// ドラフト開始時のメッセージ
         /// </summary>
         /// <value></value>
-        public string DraftBegin { get; set; }
+        public string DraftBegan { get; set; }
+        /// <summary>
+        /// ドラフト作成時のメッセージ
+        /// </summary>
+        /// <value></value>
+        public string Created { get; set; }
     }
 }
