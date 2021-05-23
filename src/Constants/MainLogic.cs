@@ -54,8 +54,6 @@ namespace CubeDraftBot
             await Task.Delay(-1);
         }
 
-private static IUser prev;
-
         /// <summary>
         ///     メッセージの受信処理
         /// </summary>
@@ -66,9 +64,6 @@ private static IUser prev;
             if(messageParam is not SocketUserMessage) return;
             var message = messageParam as SocketUserMessage;
             //Console.WriteLine("{0} {1}:{2}", message.Channel.Name, message.Author.Username, message);
-            Console.WriteLine("{0} {1}:{2}", message.Channel.Name, message.Author.Username, message);
-            Console.WriteLine("{0} is prev? : {1}",  message.Author.Id, message.Author.Id == prev?.Id);
-            prev = message.Author;
             //Console.WriteLine("{0}", messageParam.Channel is IPrivateChannel); // DM判定
             // どうやらpublicチャンネルのpostとDMではIUserは違うらしい
 
@@ -128,7 +123,6 @@ private static IUser prev;
         {
             var channel = this.Context.Channel;
             var m = Util.JsonMessageManager.GetJsonMessage();
-            Console.WriteLine("Create {0}, {1}, {2}", playerCount, packCount, cardCountPerPack);
 
             // public な text channel じゃないとダメ
             if(channel is SocketTextChannel)
@@ -149,8 +143,6 @@ private static IUser prev;
             }
             else
             {
-                // TODO いい感じにダメだよってメッセージを出す
-                //var message = string.Format(m.DraftBegin, 1);
                 await ReplyAsync("ここは違うらしい");
             }
         }
@@ -165,12 +157,17 @@ private static IUser prev;
             var draftManager = Draft.DraftManager.GetInstanceByChannel(this.Context.Channel);
             if(draftManager != null)
             {
+                if(draftManager.IsFullPlayer)
+                {
+                    await ReplyAsync("もう定員です");
+                    return;
+                }
                 var result = await draftManager.AddPlayer(this.Context.User);
                 await ReplyAsync(result ? "参加受け付けたよ" : "もうどこか参加中らしい");
                 if(draftManager.IsFullPlayer)
                 {
                     await ReplyAsync("集まったからリスト提出よろ");
-                    draftManager.StartPreparation();
+                    await draftManager.StartPreparation();
                 }
             }
             else
@@ -238,11 +235,15 @@ private static IUser prev;
             var draftManager = Draft.DraftManager.GetInstanceByUser(this.Context.User);
             if(draftManager != null)
             {
-                await draftManager.Pick(this.Context.User, id);
+                bool result = await draftManager.Pick(this.Context.User, id);
+                if(!result)
+                {
+                    await this.Context.User.SendMessageAsync("ピック番号が不正です");
+                }
             }
             else
             {
-                await ReplyAsync("まだゲームがないよ");
+                await this.Context.User.SendMessageAsync("まだゲームがないよ");
             }
         }
 
@@ -266,7 +267,7 @@ private static IUser prev;
             }
             else
             {
-                await ReplyAsync("まだゲームがないよ");
+                await this.Context.User.SendMessageAsync("まだゲームがないよ");
             }
         }
 

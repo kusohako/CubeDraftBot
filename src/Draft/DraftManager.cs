@@ -105,11 +105,11 @@ namespace CubeDraftBot.Draft
         /// コンストラクタ
         /// </summary>
         /// <param name="PlayerCount">ゲーム参加人数</param>
-        private DraftManager(IMessageChannel channel, int playerCount=4, int packCount=3, int cardCountPerPack=15)
+        private DraftManager(IMessageChannel channel, int playerCount=4, int packIndex=3, int cardCountPerPack=15)
         {
             this.Channel = channel;
             this.PlayerCount = playerCount;
-            this.PackCount = packCount;
+            this.PackCount = packIndex;
             this.CardCountPerPack = cardCountPerPack;
             this.Players = new Dictionary<ulong, Player>();
             this.Phase = DraftPhase.WaitingForPlayerJoin;
@@ -118,14 +118,14 @@ namespace CubeDraftBot.Draft
             this.random = new Random((int)DateTime.Now.Ticks);
         }
 
-        public static DraftManager CreateInstance(IMessageChannel channel, int playerCount=4, int packCount=3, int cardCountPerPack=15)
+        public static DraftManager CreateInstance(IMessageChannel channel, int playerCount=4, int packIndex=3, int cardCountPerPack=15)
         {
             // すでにあったらダメ
             if(DraftManager.channelDictionary.ContainsKey(channel))
             {
                 return null;
             }
-            var instance = new DraftManager(channel, playerCount, packCount, cardCountPerPack);
+            var instance = new DraftManager(channel, playerCount, packIndex, cardCountPerPack);
             DraftManager.channelDictionary.Add(channel, instance);
 
             return instance;
@@ -161,11 +161,15 @@ namespace CubeDraftBot.Draft
         /// <summary>
         /// カードリストの募集を開始する
         /// </summary>
-        public void StartPreparation()
+        public async Task StartPreparation()
         {
             // フェイズ進行
             this.Phase = DraftPhase.PreparationCardList;
-            this.Players.Values.Select(async p => await p.User.SendMessageAsync("カードリストを提出してください"));
+            string msg = String.Format("改行区切りで{0}枚分のカードリストを提出してください", this.CardCountPerPack * this.PackCount);
+            foreach(var p in this.Players.Values)
+            {
+                await p.User.SendMessageAsync(msg);
+            }
         }
 
         /// <summary>
@@ -198,12 +202,14 @@ namespace CubeDraftBot.Draft
         public async Task ShowPacks()
         {
             this.removeIndice.Clear();
-            int packCount = this.pickCount / this.CardCountPerPack;
-            bool isCounter = (packCount) % 2 == 1;
+            int packIndex = this.pickCount / this.CardCountPerPack; // 今何パック目のドラフトしてるか
+            int counterSign = (packIndex) % 2 == 1 ? 1 : -1;
             for(int i = 0; i < this.PlayerCount; i++)
             {
-                var player = this.PickOrder.ElementAt(isCounter ? i : this.PlayerCount - i - 1);
-                var pack = this.packs.ElementAt(i + packCount * this.PlayerCount);
+                var player = this.PickOrder.ElementAt(i);
+                int index = ((i + this.CardCountPerPack * this.PackCount * this.PlayerCount + counterSign * this.pickCount) % this.PlayerCount) + packIndex * this.PlayerCount;
+                // Console.WriteLine("{0} : {1}", player.User.Username, index);
+                var pack = this.packs.ElementAt(index);
                 await player.BrowsePack(pack);
             }
         }
@@ -214,16 +220,18 @@ namespace CubeDraftBot.Draft
         /// <param name="user"></param>
         /// <param name="id"></param>
         /// <returns></returns>
-        public async Task Pick(IUser user, byte id)
+        public async Task<bool> Pick(IUser user, byte id)
         {
             var player = this.Players[user.Id];
-            int packCount = this.pickCount / this.CardCountPerPack;
-            bool isCounter = (packCount) % 2 == 1;
-            int orderIndex = this.PickOrder.FindIndex(p => p == player);
+            int packIndex = this.pickCount / this.CardCountPerPack; // 今何パック目のドラフトしてるか
+            int counterSign = (packIndex) % 2 == 1 ? 1 : -1;
+            int orderIndex = this.PickOrder.FindIndex(p => p.User.Id == player.User.Id);
             // player が 0 番目で逆順 pick のときは その順の 3 (= 4 - 0 - 1) 番目のパックが対応
-            int packIndex = packCount * this.PlayerCount + (isCounter ? this.PlayerCount - orderIndex - 1 : orderIndex);
-            var card = this.packs.ElementAt(packIndex).ElementAt(id);
-            this.removeIndice.Add(packIndex, id);
+            int currentPackIndex = packIndex * this.PlayerCount + ((counterSign * this.pickCount + orderIndex + this.CardCountPerPack * this.PackCount * this.PlayerCount) % this.PlayerCount);
+            // indexチェック
+            if(this.packs.ElementAt(currentPackIndex).Count < id || id < 0) return false;
+            var card = this.packs.ElementAt(currentPackIndex).ElementAt(id);
+            this.removeIndice.Add(currentPackIndex, id);
             await player.Pick(card);
 
             // 全員ピックしたら次
@@ -239,13 +247,18 @@ namespace CubeDraftBot.Draft
                 if(++this.pickCount >= this.PackCount * this.CardCountPerPack)
                 {
                     this.Phase = DraftPhase.Completed;
-                    this.PickOrder.ForEach(async p => await p.BrowseStatus());
+                    foreach(var p in this.PickOrder)
+                    {
+                        await p.BrowseStatus();
+                    }
                 }
                 else
                 {
                     await ShowPacks();
                 }
             }
+
+            return true;
         }
 
         /// <summary>
@@ -282,6 +295,10 @@ namespace CubeDraftBot.Draft
                 }
                 p.SubmitCardList(cl);
                 await user.SendMessageAsync("提出を受け付けました");
+                if(this.Players.Values.All(p => p.DidSubmitCardList))
+                {
+                    await this.Channel.SendMessageAsync("全員が提出したので `!start` でドラフトを開始できます");
+                }
             }
         }
     }
