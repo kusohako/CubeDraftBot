@@ -1,3 +1,4 @@
+using System.IO;
 using System;
 using Discord;
 using Discord.Commands;
@@ -41,6 +42,8 @@ namespace CubeDraftBot.Draft
 
         public Card PickingCard { get; private set; }
 
+        public bool IsCompleted { get; set; }
+
         public Player(IUser user)
         {
             this.User = user;
@@ -58,11 +61,12 @@ namespace CubeDraftBot.Draft
         /// </summary>
         /// <param name="pack"></param>
         /// <returns></returns>
-        public async Task BrowsePack(List<Card> pack)
+        public async Task BrowsePack(List<Card> pack, int beginPack)
         {
             this.PickingCard = null;
+            string msg = beginPack != 0 ? String.Format("{0}番目のパックでピックを開始します\n", beginPack) : "";
             string packList = String.Join("\n", pack.Select((card, index) => String.Format("{0, 2}:{1}", index, card.Name)));
-            await this.User.SendMessageAsync("ピックするカードの番号を `!pick n` の形で入力してください\n" + packList);
+            await this.User.SendMessageAsync(msg + "ピックするカードの番号を `!pick n` の形で入力してください\n" + packList);
         }
 
         /// <summary>
@@ -89,14 +93,22 @@ namespace CubeDraftBot.Draft
         /// ピックの状態を見る
         /// </summary>
         /// <returns></returns>
-        public async Task BrowseStatus()
+        public async Task BrowseStatus(IMessageChannel channel = null)
         {
             var msg = "これらのカードをピックしています\n" + String.Join("\n", this.PickedCards.Select(c => c.Name));
             if(this.DidPick)
             {
                 msg += "\nもうすぐ" + this.PickingCard.Name + "のピックが確定します";
             }
-            await this.User.SendMessageAsync(msg);
+            if(channel == null)
+            {
+                await this.User.SendMessageAsync(msg);
+            }
+            else
+            {
+                msg = this.User.Username + "は" + msg;
+                await channel.SendMessageAsync(msg);
+            }
         }
     }
 }

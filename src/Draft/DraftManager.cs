@@ -1,8 +1,6 @@
 using System;
-using System.Xml.Linq;
 using System.Linq;
 using System.Threading.Tasks;
-using System.IO;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -113,7 +111,7 @@ namespace CubeDraftBot.Draft
             this.CardCountPerPack = cardCountPerPack;
             this.Players = new Dictionary<ulong, Player>();
             this.Phase = DraftPhase.WaitingForPlayerJoin;
-            
+
             this.removeIndice = new Dictionary<int, int>();
             this.random = new Random((int)DateTime.Now.Ticks);
         }
@@ -132,6 +130,25 @@ namespace CubeDraftBot.Draft
         }
 
         /// <summary>
+        /// 破壊する
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <returns></returns>
+        public static bool Destroy(IMessageChannel channel)
+        {
+            if(channelDictionary.ContainsKey(channel))
+            {
+                foreach(var player in channelDictionary[channel].Players.Values)
+                {
+                    userDictionary.Remove(player.User.Id);
+                }
+                channelDictionary.Remove(channel);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 参加プレイヤーを追加する
         /// </summary>
         /// <param name="user"></param>
@@ -144,8 +161,8 @@ namespace CubeDraftBot.Draft
             var player = new Player(user);
             this.Players.Add(user.Id, player);
             DraftManager.userDictionary.Add(user.Id, this);
-
-            return true;
+            
+            return await Task.Run(() => true);
         }
 
         /// <summary>
@@ -204,13 +221,14 @@ namespace CubeDraftBot.Draft
             this.removeIndice.Clear();
             int packIndex = this.pickCount / this.CardCountPerPack; // 今何パック目のドラフトしてるか
             int counterSign = (packIndex) % 2 == 1 ? 1 : -1;
+            int beginPack = this.pickCount % this.CardCountPerPack == 0 ? packIndex + 1 : 0;
             for(int i = 0; i < this.PlayerCount; i++)
             {
                 var player = this.PickOrder.ElementAt(i);
                 int index = ((i + this.CardCountPerPack * this.PackCount * this.PlayerCount + counterSign * this.pickCount) % this.PlayerCount) + packIndex * this.PlayerCount;
-                // Console.WriteLine("{0} : {1}", player.User.Username, index);
+                Console.WriteLine("{0} : {1}", player.User.Username, index);
                 var pack = this.packs.ElementAt(index);
-                await player.BrowsePack(pack);
+                await player.BrowsePack(pack, beginPack);
             }
         }
 
@@ -231,7 +249,7 @@ namespace CubeDraftBot.Draft
             // indexチェック
             if(this.packs.ElementAt(currentPackIndex).Count < id || id < 0) return false;
             var card = this.packs.ElementAt(currentPackIndex).ElementAt(id);
-            this.removeIndice.Add(currentPackIndex, id);
+            this.removeIndice[currentPackIndex] = id;
             await player.Pick(card);
 
             // 全員ピックしたら次
@@ -247,8 +265,10 @@ namespace CubeDraftBot.Draft
                 if(++this.pickCount >= this.PackCount * this.CardCountPerPack)
                 {
                     this.Phase = DraftPhase.Completed;
+                    await this.Channel.SendMessageAsync("ピックが完了しました\nプレイヤー全員が `!complete` と入力すると全員のピックが表示されるので\n対戦が終わったら入力して臭い");
                     foreach(var p in this.PickOrder)
                     {
+                        await p.User.SendMessageAsync("ピックが完了しました");
                         await p.BrowseStatus();
                     }
                 }
@@ -300,6 +320,31 @@ namespace CubeDraftBot.Draft
                     await this.Channel.SendMessageAsync("全員が提出したので `!start` でドラフトを開始できます");
                 }
             }
+        }
+
+        /// <summary>
+        /// おわる
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        public async Task CompletePlayer(IUser user)
+        {
+            if(this.Phase != DraftPhase.Completed)
+            {
+                await this.Channel.SendMessageAsync("まだドラフトが終わっていません");
+                return;
+            }
+            var p = this.Players[user.Id];
+            p.IsCompleted = true;
+            if(this.Players.Values.All(p => p.IsCompleted))
+            {
+                foreach (var player in this.Players.Values)
+                {
+                    await player.BrowseStatus(this.Channel);
+                }
+            }
+            await this.Channel.SendMessageAsync("ゲームを終了しました");
+            DraftManager.Destroy(this.Channel);
         }
     }
 }

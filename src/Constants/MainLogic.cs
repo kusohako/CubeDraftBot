@@ -90,6 +90,8 @@ namespace CubeDraftBot
             var context = new CommandContext(Client, message);
             var result = await Commands.ExecuteAsync(context, argPos, Provider);
 
+            // TODO このへんでまとめてメッセージ出力させる感じにしたい
+
             //実行できなかった場合
             if (!result.IsSuccess)
             {
@@ -147,6 +149,33 @@ namespace CubeDraftBot
             }
         }
 
+        [Command("destroy")]
+        public async Task Destroy()
+        {
+            var channel = this.Context.Channel;
+            var m = Util.JsonMessageManager.GetJsonMessage();
+
+            // public な text channel じゃないとダメ
+            if(channel is SocketTextChannel)
+            {
+                var draftManager = Draft.DraftManager.GetInstanceByChannel(channel);
+                // 終了してないやつがあったらダメ
+                if(draftManager != null)
+                {
+                    Draft.DraftManager.Destroy(channel);
+                    await ReplyAsync("ゲームを破壊したよ");
+                }
+                else
+                {
+                    await ReplyAsync("まだないよ");
+                }
+            }
+            else
+            {
+                await ReplyAsync("ここは違うらしい");
+            }
+        }
+
         /// <summary>
         /// プレイヤーの参加表明
         /// </summary>
@@ -163,7 +192,7 @@ namespace CubeDraftBot
                     return;
                 }
                 var result = await draftManager.AddPlayer(this.Context.User);
-                await ReplyAsync(result ? "参加受け付けたよ" : "もうどこか参加中らしい");
+                await ReplyAsync(result ? String.Format("{0}さんの参加を受け付けました", this.Context.User.Username) : "すでにどこかに参加中です");
                 if(draftManager.IsFullPlayer)
                 {
                     await ReplyAsync("集まったからリスト提出よろ");
@@ -184,7 +213,7 @@ namespace CubeDraftBot
         public async Task Leave()
         {
             var draftManager = Draft.DraftManager.GetInstanceByChannel(this.Context.Channel);
-            if(draftManager != null)
+            if(draftManager != null && draftManager.Phase == Draft.DraftManager.DraftPhase.WaitingForPlayerJoin)
             {
                 draftManager.RemovePlayer(this.Context.User);
             }
@@ -271,5 +300,18 @@ namespace CubeDraftBot
             }
         }
 
+        [Command("complete")]
+        public async Task Complete()
+        {
+            var draftManager = Draft.DraftManager.GetInstanceByUser(this.Context.User);
+            if(draftManager != null)
+            {
+                await draftManager.CompletePlayer(this.Context.User);
+            }
+            else
+            {
+                await this.Context.User.SendMessageAsync("まだゲームがないよ");
+            }
+        }
     }
 }
