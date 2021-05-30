@@ -1,9 +1,9 @@
 # Introduction
-This is a tool for online TCG players.
+discordでキューブドラフトするためのbotです
 
 # Usage
-
-coming soon...
+discord bot を作ってこいつにtokenを食わせてあげれて実行すれば動きます
+サーバー加入時に必要な権限:メッセージの送受信
 
 # 要件メモ
 
@@ -44,13 +44,15 @@ coming soon...
   - 平文でカードリスト提出
     - 提出内訳をDMで表示
     - 再提出で上書き
-  - !draftstart
+  - !start
     - 足りてなかったら「カードリストがまだ完成していません」
     - 足りてたらピックの席順発表、DMでpick開始
   - !pick 4
     - 表示されてるうち4つ目をpick
     - 全員pickするまで変更可能？要検討
     - ラスト1pickは自動
+  - !complete
+    - 対戦が終わって全員が入力すればpickリストを出してくれる
 
 
 ## 拡張（願望）
