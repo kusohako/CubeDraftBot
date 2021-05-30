@@ -252,7 +252,7 @@ namespace CubeDraftBot
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        [Command("pick")]
+        [Command("pick"), Alias("p")]
         public async Task Pick(byte id)
         {
             var channel = this.Context.Channel;

@@ -265,7 +265,7 @@ namespace CubeDraftBot.Draft
                 if(++this.pickCount >= this.PackCount * this.CardCountPerPack)
                 {
                     this.Phase = DraftPhase.Completed;
-                    await this.Channel.SendMessageAsync("ピックが完了しました\nプレイヤー全員が `!complete` と入力すると全員のピックが表示されるので\n対戦が終わったら入力して臭い");
+                    await this.Channel.SendMessageAsync("ピックが完了しました\nプレイヤー全員が `!complete` と入力すると全員のピックが表示されるので\n対戦が終わったら入力してください");
                     foreach(var p in this.PickOrder)
                     {
                         await p.User.SendMessageAsync("ピックが完了しました");
@@ -309,7 +309,7 @@ namespace CubeDraftBot.Draft
                 var requireNum = this.PackCount * this.CardCountPerPack;
                 if(cl.Count != requireNum)
                 {
-                    string str = String.Format("カードリストは{0}枚にしてください", requireNum);
+                    string str = String.Format("提出されたものは{0}枚になっています\nカードリストは{1}枚にしてください", cl.Count, requireNum);
                     await user.SendMessageAsync(str);
                     return;
                 }
@@ -342,9 +342,9 @@ namespace CubeDraftBot.Draft
                 {
                     await player.BrowseStatus(this.Channel);
                 }
+                await this.Channel.SendMessageAsync("ゲームを終了しました");
+                DraftManager.Destroy(this.Channel);
             }
-            await this.Channel.SendMessageAsync("ゲームを終了しました");
-            DraftManager.Destroy(this.Channel);
         }
     }
 }
