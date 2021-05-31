@@ -90,16 +90,34 @@ namespace CubeDraftBot.Draft
         }
 
         /// <summary>
+        /// 後で消す
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="chunkSize"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        private static IEnumerable<IEnumerable<T>> chunk<T>(IEnumerable<T> source, int chunkSize)
+        {
+            if (chunkSize <= 0)
+                throw new ArgumentException("Chunk size must be greater than 0.", nameof(chunkSize));
+
+            return source.Select((v, i) => new { v, i })
+                .GroupBy(x => x.i / chunkSize)
+                .Select(g => g.Select(x => x.v));
+        }
+
+        /// <summary>
         /// ピックの状態を見る
         /// </summary>
         /// <returns></returns>
         public async Task BrowseStatus(IMessageChannel channel = null)
         {
-            var msg = "これらのカードをピックしています\n" + String.Join("\n", this.PickedCards.Select(c => c.Name));
+            var msg = this.PickedCards.Count != 0 ? "これらのカードをピックしています\n" + String.Join("\n", this.PickedCards.Select(c => c.Name)) : "まだ何もピックしていません";
             if(this.DidPick)
             {
                 msg += "\nもうすぐ" + this.PickingCard.Name + "のピックが確定します";
             }
+            
             if(channel == null)
             {
                 await this.User.SendMessageAsync(msg);

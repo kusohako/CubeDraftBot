@@ -1,3 +1,5 @@
+using System.Text;
+using System.Net;
 using System.Linq;
 using Discord;
 using Discord.Commands;
@@ -81,7 +83,14 @@ namespace CubeDraftBot
                 if(message.Channel is SocketDMChannel)
                 {
                     var dm = Draft.DraftManager.GetInstanceByUser(message.Author);
-                    await dm?.ReceiveDM(message.Author, message.Content);
+                    string msg = message.Content;
+                    if(message.Attachments.Count > 0)
+                    {
+                        WebClient client = new WebClient();
+                        byte[] b = client.DownloadData(message.Attachments.First().Url);
+                        msg = Encoding.UTF8.GetString(b);
+                    }
+                    await dm.ReceiveDM(message.Author, msg);
                 }
                 return;
             }
